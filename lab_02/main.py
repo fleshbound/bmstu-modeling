@@ -7,7 +7,7 @@ T_TABLE = np.array([2000, 3000, 4000,
 
 K_TABLE_1 = np.array([8.200E-03, 2.768E-02, 6.560E-02, 1.281E-01,
                     2.214E-01, 3.516E-01, 5.248E-01, 7.472E-01,
-                    1.025E+00]) * 30
+                    1.025E+00]) * 2
 
 K_TABLE_2 = np.array([1.600e+00, 5.400e+00, 1.280e+01,
                       2.500e+01, 4.320e+01, 6.860e+01,
@@ -15,7 +15,7 @@ K_TABLE_2 = np.array([1.600e+00, 5.400e+00, 1.280e+01,
 
 DI_EPS = 1e-4
 R = 0.35
-T_W = 2000
+T_W = 10000
 T_0 = 10000
 P = 4
 C = 3e+10
@@ -61,51 +61,52 @@ def runge_kutta(cur_h, z_n, y_n, u_n, f, phi):
     return y, u
 
 
-def get_solution(k, u0, f0, up0):
+def get_solution(k, t0, f0, up0):
     """z in [0; 1]"""
 
     # U'
     def phi(z, y, t):
-        return -3.0 * R * k(T(z)) * y / C
+        return -3.0 * R * k(T(z)) * y / C / up0
 
     # F'
     def f(z, y, t):
         if abs(z) < 1e-4:
-            return R * C * k(T(z)) * (u_p(z) - t) / 2
+            return R * C * k(T(z)) * (u_p(z) - t * up0) / 2
 
-        return R * C * k(T(z)) * (u_p(z) - t) - y / z
+        return R * C * k(T(z)) * (u_p(z) - t * up0) - y / z
 
     y = np.zeros(len(z))  # -> f
-    u = np.zeros(len(z))  # -> u
+    t = np.zeros(len(z))  # -> t = u / u_p(0)
     y[0] = f0
-    u[0] = u0
+    t[0] = t0
     cur_h = h
 
     for i in range(1, len(z)):
         z_n = z[i - 1]
         y_n = y[i - 1]
-        u_n = u[i - 1]
-        k1 = f(z_n, y_n, u_n)
-        q1 = phi(z_n, y_n, u_n)
-        k2 = f(z_n + cur_h / 2, y_n + cur_h * k1 / 2, u_n + cur_h * q1 / 2)
-        q2 = phi(z_n + cur_h / 2, y_n + cur_h * k1 / 2, u_n + cur_h * q1 / 2)
-        k3 = f(z_n + cur_h / 2, y_n + cur_h * k2 / 2, u_n + cur_h * q2 / 2)
-        q3 = phi(z_n + cur_h / 2, y_n + cur_h * k2 / 2, u_n + cur_h * q2 / 2)
-        k4 = f(z_n + cur_h, y_n + cur_h * k3, u_n + cur_h * q3)
-        q4 = phi(z_n + cur_h, y_n + cur_h * k3, u_n + cur_h * q3)
+        t_n = t[i - 1]
+        k1 = f(z_n, y_n, t_n)
+        q1 = phi(z_n, y_n, t_n)
+        k2 = f(z_n + h / 2, y_n + h * k1 / 2, t_n + h * q1 / 2)
+        q2 = phi(z_n + h / 2, y_n + h * k1 / 2, t_n + h * q1 / 2)
+        k3 = f(z_n + h / 2, y_n + h * k2 / 2, t_n + h * q2 / 2)
+        q3 = phi(z_n + h / 2, y_n + h * k2 / 2, t_n + h * q2 / 2)
+        k4 = f(z_n + h, y_n + h * k3, t_n + h * q3)
+        q4 = phi(z_n + h, y_n + h * k3, t_n + h * q3)
 
-        y[i] = y_n + cur_h / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
-        u[i] = u_n + cur_h / 6 * (q1 + 2 * q2 + 2 * q3 + q4)
+        y[i] = y_n + h / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+        t[i] = t_n + h / 6 * (q1 + 2 * q2 + 2 * q3 + q4)
 
-    return z, y, u
+
+    return z, y, t
 
 
 def solve(k, u0, f0):
     up0 = u_p(0)
-    # t0 = u0 / up0
-    # f, t = get_solution(k, t0, f0, up0)
-    # u = t * up0
-    z, f, u = get_solution(k, u0, f0, up0)
+    t0 = u0 / up0
+    z, f, t = get_solution(k, t0, f0, up0)
+    u = t * up0
+    # z, f, u = get_solution(k, u0, f0, up0)
     return z, f, u
 
 
@@ -207,10 +208,6 @@ def get_solution_2(k, u0, f0, up0):
     return z, y, u
 
 
-# def get_adams():
-
-
-
 def solve_2(k, u0, f0):
     up0 = u_p(0)
     z, f, u = get_solution_2(k, u0, f0, up0)
@@ -238,9 +235,13 @@ def run(n_k):
         axs[1][1].plot(z, k, color="red")  # , label="k(z)")
         axs[1][1].set_title("k1(z)")
 
-        _p = np.vectorize(psi)(f, u)
-        axs[1][2].plot(cur_z, _p, color="red")  # , label="k(z)")
-        axs[1][2].set_title(f"psi(z), u0 = {u0:.3e}")
+        # _p = np.vectorize(psi)(f, u)
+        # axs[1][2].plot(cur_z, _p, color="red")  # , label="k(z)")
+        # axs[1][2].set_title(f"psi(z), u0 = {u0:.3e}")
+
+        axs[1][2].plot(cur_z, u, color="red")  # , label="U(z)")
+        axs[1][2].plot(cur_z, u_p(z), color="blue")  # , label="U_p(z)")
+        axs[1][2].set_title("U(z), U_p(z)")
 
         fig.set_size_inches(12, 7)
         fig.tight_layout()
@@ -249,17 +250,19 @@ def run(n_k):
     k_t = k1 if n_k == 1 else k2
     # solve_f = solve if n_k == 1 else solve_2
 
-    # if n_k == 1:
-    #     u0, u0_min, u0_max = get_u0(k_t)
-    #     print(f"u0 interval: [{u0_min:.4e}; {u0_max:.4e}]\nu0 = {u0:.4e}")
-    # else:
-    u0 = 3.9207e-07
+    if n_k == 1:
+        u0, u0_min, u0_max = get_u0(k_t)
+        print(f"u0 interval: [{u0_min:.4e}; {u0_max:.4e}]\nu0 = {u0:.4e}")
+    else:
+        u0 = 3.9207e-07
 
     all_z, f, u = solve(k_t, u0, 0)
     graph(all_z)
 
-    all_z, f, u = solve_2(k_t, u0, 0)
-    graph(all_z)
+    # all_z, f, u = solve_2(k_t, u0, 0)
+    # graph(all_z)
+
+
 
 
 if __name__ == '__main__':
