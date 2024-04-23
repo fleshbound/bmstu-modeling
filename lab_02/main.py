@@ -21,7 +21,7 @@ P = 4
 C = 3e+10
 min_z = 0
 max_z = 1
-n = 1000
+n = 3
 z, h = np.linspace(min_z, max_z, n, retstep=True)
 
 
@@ -172,7 +172,7 @@ def get_solution_2(k, u0, f0, up0):
 
         new_y = y_h
         new_u = u_h
-        print(f"EPS_Y: {eps_y:.5e} EPS_U: {eps_u:.5e}")
+        # print(f"EPS_Y: {eps_y:.5e} EPS_U: {eps_u:.5e}")
 
         while abs(eps_y) > 1e-4 or abs(eps_u) > 1e-4:
             new_h = cur_h / 2
@@ -180,7 +180,7 @@ def get_solution_2(k, u0, f0, up0):
             tmp_z_end = cur_z + cur_h
             tmp_y_res = y_h
             tmp_u_res = u_h
-            print(f"NEW_H: {new_h:.3e}")
+            # print(f"NEW_H: {new_h:.3e}")
 
             while abs(tmp_z - (new_h + tmp_z_end)) > 1e-6:
                 tmp_y_res, tmp_u_res = runge_kutta(new_h, tmp_z, tmp_y_res, tmp_u_res, f, phi)
@@ -188,7 +188,7 @@ def get_solution_2(k, u0, f0, up0):
 
             eps_y = (tmp_y_res - y_h) / y_2h
             eps_u = (tmp_u_res - u_h) / u_2h
-            print(f"EPS_Y: {eps_y:.5e} EPS_U: {eps_u:.5e}")
+            # print(f"EPS_Y: {eps_y:.5e} EPS_U: {eps_u:.5e}")
             # print(eps_y, "---", eps_u)
 
             cur_h = new_h
@@ -228,8 +228,8 @@ def run(n_k):
         axs[0][0].set_title("F(z)")
         axs[0][1].plot(cur_z, u, color="red")  # , label="U(z)")
         axs[0][1].set_title("U(z)")
-        axs[0][2].plot(cur_z, u_p(z), color="red")  # , label="U_p(z)")
-        axs[0][2].set_title("U_p(z)")
+        # axs[0][2].plot(cur_z, u_p(z), color="red")  # , label="U_p(z)")
+        # axs[0][2].set_title("U_p(z)")
         axs[1][0].plot(z, T(z), color="red")  # , label="T(z)")
         axs[1][0].set_title("T(z)")
         axs[1][1].plot(z, k, color="red")  # , label="k(z)")
@@ -239,9 +239,9 @@ def run(n_k):
         # axs[1][2].plot(cur_z, _p, color="red")  # , label="k(z)")
         # axs[1][2].set_title(f"psi(z), u0 = {u0:.3e}")
 
-        axs[1][2].plot(cur_z, u, color="red")  # , label="U(z)")
-        axs[1][2].plot(cur_z, u_p(z), color="blue")  # , label="U_p(z)")
-        axs[1][2].set_title("U(z), U_p(z)")
+        axs[0][2].plot(cur_z, u, color="red")  # , label="U(z)")
+        axs[0][2].plot(cur_z, u_p(z), color="blue")  # , label="U_p(z)")
+        axs[0][2].set_title("U(z), U_p(z)")
 
         fig.set_size_inches(12, 7)
         fig.tight_layout()
@@ -259,10 +259,15 @@ def run(n_k):
     all_z, f, u = solve(k_t, u0, 0)
     graph(all_z)
 
+    fi = open("1.txt", "w")
+    fi.write("| z | u | f |\n")
+
+    for i in range(len(z)):
+        stri = f"| {z[i]:.10e} | {u[i]:.10e} | {f[i]:.10e} |\n"
+        fi.write(stri)
+
     # all_z, f, u = solve_2(k_t, u0, 0)
     # graph(all_z)
-
-
 
 
 if __name__ == '__main__':
