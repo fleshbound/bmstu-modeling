@@ -13,7 +13,18 @@ K_TABLE_2 = np.array([1.600e+00, 5.400e+00, 1.280e+01,
                       2.500e+01, 4.320e+01, 6.860e+01,
                       1.024e+02, 1.458e+02, 2.000e+02])
 
-DI_EPS = 1e-4
+DI_EPS_inp = input('Введите точность (по умолчанию 1e-4): ').strip()
+if DI_EPS_inp == '':
+    DI_EPS = 1e-4
+else:
+    DI_EPS = float(DI_EPS_inp)
+
+n_inp = input('Введите число узлов (по умолчанию 200): ').strip()
+if n_inp == '':
+    n = 200
+else:
+    n = int(n_inp)
+
 R = 0.35
 T_W = 2000  # 10000
 T_0 = 10000
@@ -21,7 +32,6 @@ P = 4
 C = 3e+10
 min_z = 0
 max_z = 1
-n = 3
 z, h = np.linspace(min_z, max_z, n, retstep=True)
 
 
@@ -257,14 +267,16 @@ def run(n_k):
         u0 = 3.9207e-07
 
     all_z, f, u = solve(k_t, u0, 0)
-    graph(all_z)
+    # graph(all_z)
 
-    fi = open("1.txt", "w")
+    fi = open(f"data/{n}.txt", "w", encoding="utf-8")
     fi.write("| z | u | f |\n")
 
     for i in range(len(z)):
         stri = f"| {z[i]:.10e} | {u[i]:.10e} | {f[i]:.10e} |\n"
         fi.write(stri)
+
+    fi.close()
 
     # all_z, f, u = solve_2(k_t, u0, 0)
     # graph(all_z)

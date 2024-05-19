@@ -43,8 +43,8 @@ def k2(T):
     return np.exp(np.interp(np.log(T), xi, eta))
 
 
-def sweep(z_start, z_end, N, k):
-    """правая прогонка (не такая точная как левая и встречная)"""
+def right_sweep(z_start, z_end, N, k):
+    """правая прогонка"""
 
     z, h = np.linspace(z_start, z_end, N, retstep=True)
 
@@ -286,11 +286,11 @@ def div_f(k, z, u):
 
 
 def run(k_n):
-    n = 2000
+    n = 200
 
     k = k1 if k_n == 1 else k2
 
-    z, u, h = sweep(min_z, max_z, n, k)
+    z, u, h = right_sweep(min_z, max_z, n, k)
     # z, u, h = left_sweep(min_z, max_z, n, k)
     # der_u = get_u_derivative(u, h)
     f = get_f_from_u_der(u, z, h, k)
@@ -326,11 +326,13 @@ def run(k_n):
     plt.show()
 
     fi = open("1.txt", "w")
+    fi.write(f"n = {n}\n")
     fi.write("| z | u | f | f_int |\n")
 
     for i in range(len(z)):
-        stri = f"| {z[i]:.10e} | {u[i]:.10e} | {f[i]:.10e} | {f_int[i]:.10e} |\n"
-        fi.write(stri)
+        if i == 0 or i == len(z) - 1:
+            stri = f"| {z[i]:.5e} | {u[i]:.5e} | {f[i]:.5e} | {f_int[i]:.5e} |\n"
+            fi.write(stri)
 
 
 if __name__ == '__main__':
