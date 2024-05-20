@@ -149,10 +149,10 @@ def right_sweep(a, b, h):
     n = 1
 
     while z < b + h / 2:
-        a_n = (z - h / 2) * (kappa2(z - h, z)) / (r ** 2 * h)
-        c_n = ((z + h / 2) * kappa2(z, z + h)) / (r ** 2 * h)
-        b_n = a_n + c_n + _p(z) * v_n(z, h)
-        d_n = f(z) * v_n(z, h)
+        a_n = (z - h / 2) * (kappa_new(z - h, z)) / (r ** 2 * h)
+        c_n = ((z + h / 2) * kappa_new(z, z + h)) / (r ** 2 * h)
+        b_n = a_n + c_n + _p_new(z) * v_n(z, h)
+        d_n = f_new(z) * v_n(z, h)
 
         ksi.append(c_n / (b_n - a_n * ksi[n]))
         eta.append((a_n * eta[n] + d_n) / (b_n - a_n * ksi[n]))
@@ -181,10 +181,10 @@ def left_sweep(a, b, h):
     cnt = 1
 
     while z > a - h / 2:
-        a_n = (z - h / 2) * (kappa1(z - h, z)) / (r ** 2 * h)
-        c_n = ((z + h / 2) * kappa1(z, z + h)) / (r ** 2 * h)
-        b_n = a_n + c_n + _p(z) * v_n(z, h)
-        d_n = f(z) * v_n(z, h)
+        a_n = (z - h / 2) * (kappa_new(z - h, z)) / (r ** 2 * h)
+        c_n = ((z + h / 2) * kappa_new(z, z + h)) / (r ** 2 * h)
+        b_n = a_n + c_n + _p_new(z) * v_n(z, h)
+        d_n = f_new(z) * v_n(z, h)
 
         # print(a_n, b_n, c_n, d_n)
         ksi.insert(0, a_n / (b_n - c_n * ksi[n]))
@@ -194,7 +194,7 @@ def left_sweep(a, b, h):
         z -= h
         cnt += 1
 
-    u = [0] * cnt
+    u = [0] * (cnt)
     u[0] = (p0 - k0 * eta[0]) / (m0 + k0 * ksi[0])
 
     for i in range(1, cnt):
@@ -214,10 +214,10 @@ def meetings_sweep(a, b, h, n_eq):
     eta_r = [0, p0 / m0]
 
     while z < n_eq * h:
-        a_n = (z - h / 2) * (kappa1(z - h, z)) / (r ** 2 * h)
-        c_n = ((z + h / 2) * kappa1(z, z + h)) / (r ** 2 * h)
-        b_n = a_n + c_n + _p(z) * v_n(z, h)
-        d_n = f(z) * v_n(z, h)
+        a_n = (z - h / 2) * (kappa_new(z - h, z)) / (r ** 2 * h)
+        c_n = ((z + h / 2) * kappa_new(z, z + h)) / (r ** 2 * h)
+        b_n = a_n + c_n + _p_new(z) * v_n(z, h)
+        d_n = f_new(z) * v_n(z, h)
 
         ksi_r.append(c_n / (b_n - a_n * ksi_r[n]))
         eta_r.append((a_n * eta_r[n] + d_n) / (b_n - a_n * ksi_r[n]))
@@ -234,10 +234,10 @@ def meetings_sweep(a, b, h, n_eq):
     cnt = 1
 
     while z > n_eq * h - h / 2:
-        a_n = (z - h / 2) * (kappa1(z - h, z)) / (r ** 2 * h)
-        c_n = ((z + h / 2) * kappa1(z, z + h)) / (r ** 2 * h)
-        b_n = a_n + c_n + _p(z) * v_n(z, h)
-        d_n = f(z) * v_n(z, h)
+        a_n = (z - h / 2) * (kappa_new(z - h, z)) / (r ** 2 * h)
+        c_n = ((z + h / 2) * kappa_new(z, z + h)) / (r ** 2 * h)
+        b_n = a_n + c_n + _p_new(z) * v_n(z, h)
+        d_n = f_new(z) * v_n(z, h)
 
         ksi_l.insert(0, a_n / (b_n - c_n * ksi_l[n1]))
         eta_l.insert(0, (c_n * eta_l[n1] + d_n) / (b_n - c_n * ksi_l[n1]))
@@ -248,8 +248,6 @@ def meetings_sweep(a, b, h, n_eq):
 
     u = [0] * (n + cnt)
     u[n_eq] = (ksi_r[-1] * eta_l[0] + eta_r[-1]) / (1 - ksi_r[-1] * ksi_l[0])
-
-    # print(f"U в точке p = {n_eq} равно {u[n_eq]: <.7e}")
 
     for i in range(n_eq - 1, -1, -1):
         u[i] = ksi_r[i + 1] * u[i + 1] + eta_r[i + 1]
@@ -264,11 +262,15 @@ def meetings_sweep(a, b, h, n_eq):
 def flux1(u, z, h):
     f_res = [0]
 
-    for i in range(1, len(u) - 1):
-        curr_f = -(_lambda(z[i]) / r) * (u[i + 1] - u[i - 1]) / (2 * h)
-        f_res.append(curr_f)
+    try:
+        for i in range(1, len(u) - 1):
+            curr_f = -(_lambda(z[i]) / r) * (u[i + 1] - u[i - 1]) / (2 * h)
+            f_res.append(curr_f)
 
-    f_res.append(-(_lambda(z[len(u) - 1]) / r) * (3 * u[-1] - 4 * u[-2] + u[-3]) / (2 * h))
+        f_res.append(-(_lambda(z[len(u) - 1]) / r) * (3 * u[-1] - 4 * u[-2] + u[-3]) / (2 * h))
+    except IndexError:
+        print("i", end="")
+        return []
 
     return f_res
 
@@ -282,9 +284,13 @@ def flux2(z, u, h):
     else:
         k = k2
 
-    for i in range(1, len(z)):
-        _f.append(k(z[i]) * (u_p(z[i]) - u[i]) * z[i])
-        f_res.append((c * r / z[i]) * h * ((_f[0] + _f[i]) / 2 + sum(_f[1:-1])))
+    try:
+        for i in range(1, len(z)):
+            _f.append(k(z[i]) * (u_p(z[i]) - u[i]) * z[i])
+            f_res.append((c * r / z[i]) * h * ((_f[0] + _f[i]) / 2 + sum(_f[1:-1])))
+    except IndexError:
+        print("i", end="")
+        return []
 
     return f_res
 
@@ -400,6 +406,62 @@ def cmp_res_by_input_data(a, b, h):
     plt.ion()
 
 
+def process(start, stop, step, a, b, sweeps):
+    print(f"start data rewriting: z in [{a}, {b}], n in [{start}, {stop}], step = {step}, sweeps = {sweeps}")
+
+    for n in range(start, stop + 1, step):
+        print(f".", end="")
+        h = (b - a) / n
+
+        for sweep in sweeps:
+            if sweep == 'r':
+                u_res = right_sweep(a, b, h)
+            elif sweep == 'l':
+                u_res = left_sweep(a, b, h)
+            else:
+                u_res = meetings_sweep(a, b, h, n // 2)
+
+            # print(u_res)
+
+            z_res = np.arange(a, b + h, h)
+            f_res = flux1(u_res, z_res, h)
+            f_res2 = flux2(z_res, u_res, h)
+
+            if len(f_res) == 0:
+                print("e1", end="")
+                continue
+
+            if len(f_res2) == 0:
+                print("e2", end="")
+                continue
+
+            # f_res2 = flux3(z_res, u_res, h)
+
+            up_res = [0] * len(z_res)
+            div_f = [0] * len(z_res)
+
+            for i in range(len(z_res)):
+                up_res[i] = u_p(z_res[i])
+                div_f[i] = div_flux(z_res[i], u_res[i])
+
+            write_result_to_file(f"data/{sweep}/{n}.txt", z_res, u_res, f_res, f_res2)
+
+    print("\nsuccess")
+
+
+def get_data():
+    global is_k1
+    is_k1 = True
+    a, b = 0, 1
+    sweeps = ['r', 'l', 'm']
+    start, stop, step = 10, 100, 10
+    process(start, stop, step, a, b, sweeps)
+    start, stop, step = 200, 1000, 100
+    process(start, stop, step, a, b, sweeps)
+    start, stop, step = 2000, 10000, 1000
+    process(start, stop, step, a, b, sweeps)
+
+
 def main() -> None:
     global is_k1
     var = int(input('Какой вариант данных использовать? (1, 2): ').strip())
@@ -410,8 +472,9 @@ def main() -> None:
     else:
         print("Неизвестный вариант")
         exit(1)
-    sweep = input('Какую прогонку использовать? (r, l, m): ').strip()
+
     a, b = 0, 1
+    sweep = input('Какую прогонку использовать? (r, l, m): ').strip()
     n_inp = input('Введите число узлов (по умолчанию 200): ').strip()
     if n_inp == '':
         n = 200
@@ -428,6 +491,7 @@ def main() -> None:
     else:
         print('Неизвестный способ прогонки')
         exit(1)
+
     z_res = np.arange(a, b + h, h)
     f_res = flux1(u_res, z_res, h)
     f_res2 = flux2(z_res, u_res, h)
@@ -440,39 +504,33 @@ def main() -> None:
         up_res[i] = u_p(z_res[i])
         div_f[i] = div_flux(z_res[i], u_res[i])
 
-    if sweep == 'r':
-        write_result_to_file(f"data/right_sweep/{n}.txt", z_res, u_res, f_res, f_res2)
-    elif sweep == 'l':
-        write_result_to_file(f"data/left_sweep/{n}.txt", z_res, u_res, f_res, f_res2)
-    elif sweep == 'm':
-        write_result_to_file(f"data/meetings_sweep/{n}.txt", z_res, u_res, f_res, f_res2)
+    plt.figure(figsize=(9, 6))
+    plt.subplot(2, 2, 1)
+    plt.plot(z_res, u_res, 'r', label='u(z)')
+    plt.plot(z_res, up_res, 'b', label='u_p')
+    plt.legend()
+    plt.grid()
 
-    # plt.figure(figsize=(9, 6))
-    # plt.subplot(2, 2, 1)
-    # plt.plot(z_res, u_res, 'r', label='u(z)')
-    # plt.plot(z_res, up_res, 'b', label='u_p')
-    # plt.legend()
-    # plt.grid()
-    #
-    # plt.subplot(2, 2, 2)
-    # plt.plot(z_res, f_res, 'g', label='F(z)')
-    # plt.legend()
-    # plt.grid()
-    #
-    # plt.subplot(2, 2, 3)
-    # plt.plot(z_res, f_res2, 'g', label='F(z) integral')
-    # plt.legend()
-    # plt.grid()
-    #
-    # plt.subplot(2, 2, 4)
-    # plt.plot(z_res, div_f, 'y', label='divF(z)')
-    # plt.legend()
-    # plt.grid()
-    #
-    # plt.show()
+    plt.subplot(2, 2, 2)
+    plt.plot(z_res, f_res, 'g', label='F(z)')
+    plt.legend()
+    plt.grid()
+
+    plt.subplot(2, 2, 3)
+    plt.plot(z_res, f_res2, 'g', label='F(z) integral')
+    plt.legend()
+    plt.grid()
+
+    plt.subplot(2, 2, 4)
+    plt.plot(z_res, div_f, 'y', label='divF(z)')
+    plt.legend()
+    plt.grid()
+
+    plt.show()
 
     # cmp_res_by_input_data(a, b, h)
 
 
 if __name__ == '__main__':
     main()
+    # get_data()
