@@ -436,7 +436,6 @@ def process(start, stop, step, a, b, sweeps):
                 continue
 
             # f_res2 = flux3(z_res, u_res, h)
-
             up_res = [0] * len(z_res)
             div_f = [0] * len(z_res)
 
@@ -503,6 +502,8 @@ def main() -> None:
     for i in range(len(z_res)):
         up_res[i] = u_p(z_res[i])
         div_f[i] = div_flux(z_res[i], u_res[i])
+
+    write_result_to_file(f"data/{sweep}/{n}.txt", z_res, u_res, f_res, f_res2)
 
     plt.figure(figsize=(9, 6))
     plt.subplot(2, 2, 1)
