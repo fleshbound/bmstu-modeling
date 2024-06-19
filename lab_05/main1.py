@@ -8,13 +8,9 @@ m1 = 1
 u0 = 300
 a = 10
 b = 10
-x0 = 5
-z0 = 5
-alpha_1 = 0.05
-alpha_2 = 0.1
-alpha_3 = 0.5
-alpha_4 = 1.0
-f0 = 1
+x0 = 2
+z0 = 2
+f0 = 1000
 beta = 1
 F0 = 30
 
@@ -45,62 +41,96 @@ def x_right_bound_cond():
     return xkN, xmN, xpN
 
 
-def x_right_sweep(curr_z, y_prev, y_curr, x_0, xN, h_x, tau):
-    eps = 1e-2
-    flag = True
-    approx_y_curr = y_curr
-    delta_y = []
+def get_delta_y_by_x(curr_z, y_prev, y_curr, x_0, xN, h_x, tau):
+    """Right sweep at curr_z (by x)"""
+    # print("...call get_delta_y_by_x")
 
-    while flag:
-        k0, m0, p0 = x_left_bound_cond()
-        kN, mN, pN = x_right_bound_cond()
+    k0, m0, p0 = x_left_bound_cond()
+    kN, mN, pN = x_right_bound_cond()
 
-        ksi = [0, -m0 / k0]
-        eta = [0, p0 / k0]
-        x = h_x
-        n = 1
+    ksi = [0, -m0 / k0]
+    eta = [0, p0 / k0]
+    x = h_x
+    n = 1
 
-        for i in range(1, len(approx_y_curr) - 1):
-            aN = tau / (h_x ** 2) * kappa(approx_y_curr[i - 1], approx_y_curr[i])
-            dN = tau / (h_x ** 2) * kappa(approx_y_curr[i], approx_y_curr[i + 1])
-            bN = tau / (h_x ** 2) + aN + dN
-            fN = _f(x, curr_z) * tau / 2 + y_prev[i]
+    for i in range(1, len(y_curr) - 1):
+        aN = tau / (h_x ** 2) * kappa(y_curr[i - 1], y_curr[i])
+        dN = tau / (h_x ** 2) * kappa(y_curr[i], y_curr[i + 1])
+        bN = tau / (h_x ** 2) + aN + dN
+        fN = _f(x, curr_z) / 2 + y_prev[i]
 
-            aN_1 = tau / (2 * h_x ** 2) * der_lambda(approx_y_curr[i - 1]) * (approx_y_curr[i - 1] - approx_y_curr[i]) + aN
-            bN_1 = tau / (2 * h_x ** 2) * der_lambda(approx_y_curr[i]) * (-approx_y_curr[i - 1] + 2 * approx_y_curr[i] - approx_y_curr[i + 1]) + bN
-            dN_1 = tau / (2 * h_x ** 2) * der_lambda(approx_y_curr[i + 1]) * (-approx_y_curr[i] + approx_y_curr[i + 1]) + dN
-            fN_1 = aN * approx_y_curr[i - 1] - bN * approx_y_curr[i] + dN * approx_y_curr[i + 1] + fN
+        aN_1 = tau / (2 * h_x ** 2) * der_lambda(y_curr[i - 1]) * (y_curr[i - 1] - y_curr[i]) + aN
+        bN_1 = tau / (2 * h_x ** 2) * der_lambda(y_curr[i]) * (-y_curr[i - 1] + 2 * y_curr[i] - y_curr[i + 1]) + bN
+        dN_1 = tau / (2 * h_x ** 2) * der_lambda(y_curr[i + 1]) * (-y_curr[i] + y_curr[i + 1]) + dN
+        fN_1 = aN * y_curr[i - 1] - bN * y_curr[i] + dN * y_curr[i + 1] + fN
 
-            ksi.append(dN_1 / (bN_1 - aN_1 * ksi[n]))
-            eta.append((aN_1 * eta[n] + fN_1) / (bN_1 - aN_1 * ksi[n]))
+        ksi.append(dN_1 / (bN_1 - aN_1 * ksi[n]))
+        eta.append((aN_1 * eta[n] + fN_1) / (bN_1 - aN_1 * ksi[n]))
 
-            n += 1
-            x += h_x
+        n += 1
+        x += h_x
 
-        delta_y = [0] * (n + 1)
-        delta_y[n] = (pN - kN * eta[n]) / (kN * ksi[n] + mN)
+    delta_y = [0] * (n + 1)
+    delta_y[n] = (pN - kN * eta[n]) / (kN * ksi[n] + mN)
 
-        for i in range(n - 1, -1, -1):
-            delta_y[i] = ksi[i + 1] * delta_y[i + 1] + eta[i + 1]
+    for i in range(n - 1, -1, -1):
+        delta_y[i] = ksi[i + 1] * delta_y[i + 1] + eta[i + 1]
 
-        stop_approx_flag = True
-        for i in range(len(delta_y)):
-            # print("x sweep: ", abs(delta_y[i] / approx_y_curr[i]))
-            if (abs(delta_y[i] / approx_y_curr[i]) >= eps):
-                print(f"[i={i}] x sweep: ", abs(delta_y[i] / approx_y_curr[i]))
-                stop_approx_flag = False
+    # print("get_delta_y_by_x complete")
+
+    return delta_y
+
+
+def get_approx_y_by_x_fixed_z(curr_z, y_prev, start_approx_y_curr, x_0, xN, h_x, tau):
+    """Simple iterations at curr_z (by x)"""
+    # print(f"...call get_approx_y_by_x_fixed_z (curr_z = {curr_z})")
+
+    eps = 1e-1
+    run = True
+    approx_y_curr = start_approx_y_curr
+    iter_num = 0
+
+    while run:
+        approx_delta_y = get_delta_y_by_x(curr_z, y_prev, approx_y_curr, x_0, xN, h_x, tau)
+
+        stop = True
+
+        for i in range(len(approx_delta_y)):
+            if abs(approx_delta_y[i] / approx_y_curr[i]) >= eps:
+                stop = False
                 break
 
-        if stop_approx_flag:
-            flag = False
+        iter_num += 1
+        run = not stop
+        approx_y_curr = [approx_y_curr[i] + approx_delta_y[i] for i in range(len(approx_delta_y))]
 
-        # !!! см. уравнение которое получено после линеаризации
-        approx_y_curr = [approx_y_curr[i] + delta_y[i] for i in range(len(delta_y))]
-        print('..........')
+    # print(f"get_approx_y_by_x_fixed_z complete ({iter_num} iterations)")
 
-    print(approx_y_curr)
-    exit(0)
     return approx_y_curr
+
+
+def get_approx_y_by_x(approx_0, x_0, xN, h_x, z_0, zM, h_z, tau):
+    """Simple iterations for every z by x; \n
+    returns matrix zs by xs"""
+    print(f"...call get_approx_y_by_x")
+
+    approx_1 = []
+    curr_z = z_0
+    i = 0
+
+    while curr_z < zM - h_z:
+        # массив массивов z-ов для каждого x
+        curr_approx_0 = [approx_0[idx][i] for idx in range(len(approx_0))]
+        curr_approx_1 = [approx_0[idx][i] for idx in range(len(approx_0))]
+
+        next_approx_1 = get_approx_y_by_x_fixed_z(curr_z, curr_approx_0, curr_approx_1, x_0, xN, h_x, tau)
+        approx_1.append(next_approx_1)
+        curr_z += h_z
+        i += 1
+
+    print(f"get_approx_y_by_x complete")
+
+    return np.array(approx_1)
 
 
 def z_left_bound_cond():
@@ -117,179 +147,146 @@ def z_right_bound_cond():
     return zkN, zmN, zpN
 
 
-def z_right_sweep(curr_x, y_prev, y_curr, z_0, zM, h_z, tau):
-    eps = 1e-4
-    flag = True
-    prev_res = y_curr
-    y = []
+def get_delta_y_by_z(curr_x, y_prev, y_curr, z_0, zM, h_z, tau):
+    """Right sweep at curr_x (by z)"""
+    # print("...call get_delta_y_by_z")
 
-    while flag:
-        k0, m0, p0 = z_left_bound_cond()
-        kN, mN, pN = z_right_bound_cond()
+    k0, m0, p0 = z_left_bound_cond()
+    kN, mN, pN = z_right_bound_cond()
 
-        ksi = [0, -m0 / k0]
-        eta = [0, p0 / k0]
-        z = h_z
-        n = 1
+    ksi = [0, -m0 / k0]
+    eta = [0, p0 / k0]
+    z = h_z
+    n = 1
 
-        for i in range(1, len(prev_res) - 1):
-            aN = tau / (h_z ** 2) * kappa(prev_res[i - 1], prev_res[i])
-            dN = tau / (h_z ** 2) * kappa(prev_res[i], prev_res[i + 1])
-            bN = tau / (h_z ** 2) + aN + dN
-            fN = _f(z, curr_x) * tau / 2 + y_prev[i]
+    for i in range(1, len(y_curr) - 1):
+        aN = tau / (h_z ** 2) * kappa(y_curr[i - 1], y_curr[i])
+        dN = tau / (h_z ** 2) * kappa(y_curr[i], y_curr[i + 1])
+        bN = tau / (h_z ** 2) + aN + dN
+        fN = _f(z, curr_x) / 2 + y_prev[i]
 
-            aN_1 = tau / (2 * h_z ** 2) * der_lambda(prev_res[i - 1]) * (prev_res[i - 1] - prev_res[i]) + aN
-            bN_1 = tau / (2 * h_z ** 2) * der_lambda(prev_res[i]) * (-prev_res[i - 1] + 2 * prev_res[i] - prev_res[i + 1]) + bN
-            dN_1 = tau / (2 * h_z ** 2) * der_lambda(prev_res[i + 1]) * (-prev_res[i] + prev_res[i + 1]) + dN
-            fN_1 = aN * prev_res[i - 1] - bN * prev_res[i] + dN * prev_res[i + 1] + fN
+        aN_1 = tau / (2 * h_z ** 2) * der_lambda(y_curr[i - 1]) * (y_curr[i - 1] - y_curr[i]) + aN
+        bN_1 = tau / (2 * h_z ** 2) * der_lambda(y_curr[i]) * (-y_curr[i - 1] + 2 * y_curr[i] - y_curr[i + 1]) + bN
+        dN_1 = tau / (2 * h_z ** 2) * der_lambda(y_curr[i + 1]) * (-y_curr[i] + y_curr[i + 1]) + dN
+        fN_1 = aN * y_curr[i - 1] - bN * y_curr[i] + dN * y_curr[i + 1] + fN
 
-            ksi.append(dN_1 / (bN_1 - aN_1 * ksi[n]))
-            eta.append((aN_1 * eta[n] + fN_1) / (bN_1 - aN_1 * ksi[n]))
+        ksi.append(dN_1 / (bN_1 - aN_1 * ksi[n]))
+        eta.append((aN_1 * eta[n] + fN_1) / (bN_1 - aN_1 * ksi[n]))
 
-            n += 1
-            z += h_z
+        n += 1
+        z += h_z
 
-        y = [0] * (n + 1)
-        y[n] = (pN - kN * eta[n]) / (kN * ksi[n] + mN)
+    delta_y = [0] * (n + 1)
+    delta_y[n] = (pN - kN * eta[n]) / (kN * ksi[n] + mN)
 
-        for i in range(n - 1, -1, -1):
-            y[i] = ksi[i + 1] * y[i + 1] + eta[i + 1]
+    for i in range(n - 1, -1, -1):
+        delta_y[i] = ksi[i + 1] * delta_y[i + 1] + eta[i + 1]
 
-        count = 0
-        for i in range(len(y)):
-            if abs((y[i] - prev_res[i]) / y[i]) < eps:
-                count += 1
+    # print("get_delta_y_by_z complete")
 
-        if count == len(y):
-            flag = False
-
-        prev_res = y
-
-    return y
+    return delta_y
 
 
-def is_fault_zero(y_delta, cur_y, eps):
-    count = 0
-    for i in range(len(y_delta)):
-        if abs(y_delta[i] / cur_y[i]) < eps:
-            count += 1
+def get_approx_y_by_z_fixed_x(curr_x, y_prev, start_approx_y_curr, z_0, zM, h_z, tau):
+    """Simple iterations at curr_x (by z)"""
+    # print(f"...call get_approx_y_by_z_fixed_x (curr_x = {curr_x})")
 
-    if count == len(y_delta):
-        return True
+    eps = 1e-1
+    run = True
+    approx_y_curr = start_approx_y_curr
+    iter_num = 0
 
-    return False
+    while run:
+        approx_delta_y = get_delta_y_by_z(curr_x, y_prev, approx_y_curr, z_0, zM, h_z, tau)
 
+        stop = True
 
-def get_approx_1(approx_0, x_0, xN, h_x, z_0, zM, h_z, tau):
-    eps = 1e-4
-    curr_z = z_0
-    approx_1 = []
-    i = 0
+        for i in range(len(approx_delta_y)):
+            if abs(approx_delta_y[i] / approx_y_curr[i]) >= eps:
+                stop = False
+                break
 
-    while curr_z < zM - h_z:
-        curr_approx_1 = []
-        curr_approx_0 = []
-        for approx_0_z in approx_0:
-            curr_approx_1.append(approx_0_z[i])
-            curr_approx_0.append(approx_0_z[i])
+        iter_num += 1
+        run = not stop
+        approx_y_curr = [approx_y_curr[i] + approx_delta_y[i] for i in range(len(approx_delta_y))]
 
-        fault_flag = False
-        next_approx_1 = []
+    # print(f"get_approx_y_by_z_fixed_x complete ({iter_num} iterations)")
 
-        while not fault_flag:
-            curr_approx_delta_1 = x_right_sweep(curr_z, curr_approx_0, curr_approx_1, x_0, xN, h_x, tau)
-            next_approx_1 = curr_approx_1 + curr_approx_delta_1
-            fault_flag = is_fault_zero(curr_approx_delta_1, next_approx_1, eps)
-            curr_approx_1 = next_approx_1
-
-        curr_z += h_z
-        i += 1
-        approx_1.append(next_approx_1)
-
-    return approx_1
+    return approx_y_curr
 
 
-def get_approx_2(approx_1, x_0, xN, h_x, z_0, zM, h_z, tau):
-    eps = 1e-4
-    curr_x = x_0
+def get_approx_y_by_z(approx_1, x_0, xN, h_x, z_0, zM, h_z, tau):
+    """Simple iterations for every x by z; \n
+    returns matrix zs by xs"""
+    print("...call get_approx_y_by_z")
+
     approx_2 = []
+    curr_x = x_0
     i = 0
 
     while curr_x < xN - h_x:
-        curr_approx_2 = approx_1[i]
+        # approx_1 - массив массивов z-ов для каждого x
         curr_approx_1 = approx_1[i]
+        curr_approx_2 = approx_1[i]
 
-        fault_flag = False
-        next_approx_2 = []
-
-        while not fault_flag:
-            curr_approx_delta_2 = z_right_sweep(curr_x, curr_approx_1, curr_approx_2, z_0, zM, h_z, tau)
-            next_approx_2 = curr_approx_2 + curr_approx_delta_2
-            fault_flag = is_fault_zero(curr_approx_delta_2, next_approx_2, eps)
-            curr_approx_2 = next_approx_2
-
+        next_approx_1 = get_approx_y_by_z_fixed_x(curr_x, curr_approx_1, curr_approx_2, z_0, zM, h_z, tau)
+        approx_2.append(next_approx_1)
         curr_x += h_x
         i += 1
-        approx_2.append(next_approx_2)
 
-    return approx_2
+    print("get_approx_y_by_z complete")
+
+    return np.array(approx_2)
 
 
 def get_layer_solution(approx_0, x_0, xN, h_x, z_0, zM, h_z, tau):
-    approx_1 = get_approx_1(approx_0, x_0, xN, h_x, z_0, zM, h_z, tau)
-    approx_2 = get_approx_2(approx_1, x_0, xN, h_x, z_0, zM, h_z, tau)
+    approx_1 = get_approx_y_by_x(approx_0, x_0, xN, h_x, z_0, zM, h_z, tau)
+    approx_2 = get_approx_y_by_z(approx_1.T, x_0, xN, h_x, z_0, zM, h_z, tau)
     return approx_2
 
 
-def is_left_side_zero(y_t_m, y_t_m_1, eps):
-    count = 0
+def is_left_side_zero(y_t_m, y_t_m_1):
+    eps = 1e-1
+
     for i in range(len(y_t_m)):
-        if abs((y_t_m[i] - y_t_m_1[i]) / y_t_m_1[i]) < eps:
-            count += 1
+        dt = np.mean(y_t_m - y_t_m_1) / tau
+        mistake = abs(dt / tau)
+        if mistake > eps:
+            print(f"is_left_side_zero: !too big mistake: dt = {dt:.6f}, mistake = {mistake:.6f}")
+            return False
 
-    if count == len(y_t_m):
-        return True
-
-    return False
+    return True
 
 
 def get_solution(x_0, xN, h_x, z_0, zM, h_z, t_0, tau):
-    eps = 1e-4
+    print("call get_solution")
 
-    approx_0 = []
-    tmp_x = x_0
-    while tmp_x < xN - h_x:
-        newapprox_0 = []
-        tmp_z = z_0
-        while tmp_z < zM - h_z:
-            newapprox_0.append(u0)
-            tmp_z += h_z
-        approx_0.append(newapprox_0)
-        tmp_x += h_x
-
-    prev_res = approx_0.copy()
+    xs = np.arange(x_0, xN, h_x)
+    zs = np.arange(z_0, zM, h_z)
+    approx_0 = [[u0 for _ in zs] for _ in xs]
+    prev_res = approx_0
     res = []
     times = []
     cur_t = t_0
-    left_side_zero = False
+    run = True
+    iter_num = 0
 
-    while not left_side_zero:
+    while run:
         res = get_layer_solution(prev_res, x_0, xN, h_x, z_0, zM, h_z, tau)
         times.append(cur_t)
 
-        count = 0
+        stop = True
         for i in range(len(res)):
-            if is_left_side_zero(prev_res[i], res[i], eps):
-                count += 1
+            if not is_left_side_zero(prev_res[i], res[i]):
+                stop = False
+                break
+        run = not stop
 
-        if count == len(res):
-            left_side_zero = True
-
-        prev_res = res
+        prev_res = res.copy()
         cur_t += tau
+        iter_num += 1
 
-    zs = np.arange(z_0, zM + h_z, h_z)
-    xs = np.arange(x_0, xN + h_x, h_x)
+    print(f"get_solution ({iter_num} time iterations)")
 
     return np.array(xs), np.array(zs), np.array(times), np.array(res)
 
@@ -306,6 +303,23 @@ T = 100
 # hz = (zM - z_0) / M
 hx = 0.1
 hz = 0.1
-tau = 1
+tau = 0.1
 
-xs, zs, times, res = get_solution(x_0, xN, hx, z_0, zM, hz, t_0, tau)
+xs1, zs1, times, res = get_solution(x_0, xN, hx, z_0, zM, hz, t_0, tau)
+xs = np.linspace(x_0, xN, len(res))
+zs = np.linspace(z_0, zM, len(res[0]))
+X, Y = np.meshgrid(xs, zs)
+farr = np.array([np.array(T_m) for T_m in res])
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection="3d")
+ax.plot_surface(X, Y, farr, cmap="viridis")
+
+ax.set_xlabel("x")
+ax.set_ylabel("z")
+ax.set_zlabel("U(x, z)")
+plt.show()
+
+plt.imshow(res, cmap='viridis')
+plt.colorbar()
+plt.show()
