@@ -1,9 +1,0 @@
-
-\babel@toc {russian}{}\relax 
-\contentsline {section}{\numberline {1}Условие лабораторной}{3}{section.1}%
-\contentsline {section}{\numberline {2}Теоретическая часть}{4}{section.2}%
-\contentsline {subsection}{\numberline {2.1}Методы получения последовательности случайных чисел}{4}{subsection.2.1}%
-\contentsline {subsection}{\numberline {2.2}Табличный способ}{4}{subsection.2.2}%
-\contentsline {subsection}{\numberline {2.3}Алгоритмиический способ}{4}{subsection.2.3}%
-\contentsline {subsection}{\numberline {2.4}Критерий случайности}{4}{subsection.2.4}%
-\contentsline {section}{\numberline {3}Практическая часть}{6}{section.3}%

@@ -1,6 +1,0 @@
-matplotlib
-scipy
-numpy
-PyQt5
-tkinter
-prettytable
